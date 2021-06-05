@@ -17,7 +17,7 @@ func main() {
 	resolver.myEvent <- event
 	var event2 = eventImpl{id: id.String(), msg: "Bay"}
 	resolver.myEvent <- event2
-	subscriber.LogState()
+	subscriber.HandleMessage()
 	for {
 
 	}
@@ -42,13 +42,13 @@ func (ev eventImpl) Msg() string {
 
 type resolver struct {
 	myEvent     chan IEvent
-	mySubcriber chan *subscriber
+	mySubcriber chan ISubscriber
 }
 
 func newResolver() *resolver {
 	r := &resolver{
 		myEvent:     make(chan IEvent),
-		mySubcriber: make(chan *subscriber),
+		mySubcriber: make(chan ISubscriber),
 	}
 
 	go r.broadcastEvent()
@@ -58,7 +58,7 @@ func newResolver() *resolver {
 
 func (r *resolver) broadcastEvent() {
 	log.Println("Events listening started")
-	subscribers := map[string]*subscriber{}
+	subscribers := map[string]ISubscriber{}
 	unsubscribe := make(chan string)
 	for {
 		select {
@@ -69,17 +69,17 @@ func (r *resolver) broadcastEvent() {
 			subscribers[id.String()] = s
 		case e := <-r.myEvent:
 			for id, s := range subscribers {
-				go func(id string, s *subscriber) {
+				go func(id string, s ISubscriber) {
 					select {
-					case <-s.stop:
+					case <-s.GetStop():
 						unsubscribe <- id
 						return
 					default:
 					}
 					select {
-					case <-s.stop:
+					case <-s.GetStop():
 						unsubscribe <- id
-					case s.events <- e:
+					case s.GetEvents() <- e:
 					}
 				}(id, s)
 			}
@@ -87,12 +87,32 @@ func (r *resolver) broadcastEvent() {
 	}
 }
 
+type ISubscriber interface {
+	GetId() string
+	HandleMessage()
+	GetStop() <-chan struct{}
+	GetEvents() chan IEvent
+}
+
 type subscriber struct {
+	id     string
 	stop   <-chan struct{}
 	events chan IEvent
 }
 
-func (s subscriber) LogState() {
+func (s subscriber) GetEvents() chan IEvent {
+	return s.events
+}
+
+func (s subscriber) GetStop() <-chan struct{} {
+	return s.stop
+}
+
+func (s subscriber) GetId() string {
+	return s.id
+}
+
+func (s subscriber) HandleMessage() {
 	go func() {
 		for {
 			select {
