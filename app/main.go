@@ -3,24 +3,37 @@ package main
 import (
 	guuid "github.com/google/uuid"
 	"log"
+	"time"
 )
 
 func main() {
 	var resolver = newResolver()
-	var id = guuid.New()
-	var event = eventImpl{id: id.String(), msg: "Hello"}
-	var subscriber = &subscriber{
+
+	var event = eventSimple{id: guuid.New().String(), msg: "Hello"}
+	var event2 = eventSimple{id: guuid.New().String(), msg: "Bye"}
+
+	var subscriber1 = &subscriber{
+		id:     guuid.New().String(),
 		stop:   make(chan struct{}),
 		events: make(chan IEvent),
 	}
-	resolver.mySubcriber <- subscriber
-	resolver.myEvent <- event
-	var event2 = eventImpl{id: id.String(), msg: "Bay"}
-	resolver.myEvent <- event2
-	subscriber.HandleMessage()
-	for {
 
-	}
+	var specialSubcriber = &specialSubscriber{subscriber{
+		id:     guuid.New().String(),
+		stop:   make(chan struct{}),
+		events: make(chan IEvent),
+	}}
+
+	resolver.mySubcriber <- specialSubcriber
+	resolver.mySubcriber <- subscriber1
+
+	resolver.myEvent <- event
+	resolver.myEvent <- event2
+
+	specialSubcriber.HandleMessage()
+	subscriber1.HandleMessage()
+
+	time.Sleep(2000)
 }
 
 type IEvent interface {
@@ -28,15 +41,15 @@ type IEvent interface {
 	Msg() string
 }
 
-type eventImpl struct {
+type eventSimple struct {
 	id  string
 	msg string
 }
 
-func (ev eventImpl) Id() string {
+func (ev eventSimple) Id() string {
 	return ev.id
 }
-func (ev eventImpl) Msg() string {
+func (ev eventSimple) Msg() string {
 	return ev.msg
 }
 
@@ -65,8 +78,7 @@ func (r *resolver) broadcastEvent() {
 		case id := <-unsubscribe:
 			delete(subscribers, id)
 		case s := <-r.mySubcriber:
-			id := guuid.New()
-			subscribers[id.String()] = s
+			subscribers[s.GetId()] = s
 		case e := <-r.myEvent:
 			for id, s := range subscribers {
 				go func(id string, s ISubscriber) {
@@ -80,6 +92,7 @@ func (r *resolver) broadcastEvent() {
 					case <-s.GetStop():
 						unsubscribe <- id
 					case s.GetEvents() <- e:
+						log.Println("Event pushed to", s)
 					}
 				}(id, s)
 			}
@@ -100,6 +113,10 @@ type subscriber struct {
 	events chan IEvent
 }
 
+type specialSubscriber struct {
+	subscriber
+}
+
 func (s subscriber) GetEvents() chan IEvent {
 	return s.events
 }
@@ -117,7 +134,19 @@ func (s subscriber) HandleMessage() {
 		for {
 			select {
 			case ev := <-s.events:
-				log.Println(ev.Msg())
+				log.Println("Simple subs", ev.Msg())
+			}
+		}
+	}()
+}
+
+/// overrides method
+func (s specialSubscriber) HandleMessage() {
+	go func() {
+		for {
+			select {
+			case ev := <-s.events:
+				log.Println("Special subs", ev.Msg())
 			}
 		}
 	}()
