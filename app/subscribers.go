@@ -19,6 +19,10 @@ type specialSubscriber struct {
 	subscriber
 }
 
+type plusSubscriber struct {
+	subscriber
+}
+
 func (s subscriber) GetEvents() chan ICalcEvent {
 	return s.events
 }
@@ -49,6 +53,21 @@ func (s specialSubscriber) HandleMessage() {
 			select {
 			case ev := <-s.events:
 				log.Println("Special subs", ev.Msg())
+			}
+		}
+	}()
+}
+
+///override method
+func (s *plusSubscriber) HandleMessage() {
+	go func() {
+		for {
+			select {
+			case ev := <-s.events:
+				event, ok := ev.(CalcEventPlus)
+				if ok {
+					log.Println("Plus subs", event.Msg())
+				}
 			}
 		}
 	}()

@@ -14,10 +14,11 @@ func main() {
 		A:           40,
 		B:           20,
 	}
-	var event2 = CalcEventPlus{
-		eventSimple: eventSimple{id: guuid.New().String(), msg: "Plus"},
-		A:           5,
-		B:           5,
+
+	var eventPlus = CalcEventPlus{
+		eventSimple: eventSimple{id: guuid.New().String(), msg: "Minus"},
+		A:           40,
+		B:           20,
 	}
 
 	var subscriber1 = &subscriber{
@@ -26,20 +27,25 @@ func main() {
 		events: make(chan ICalcEvent),
 	}
 
-	var specialSubcriber = &specialSubscriber{subscriber{
-		id:     guuid.New().String(),
-		stop:   make(chan struct{}),
-		events: make(chan ICalcEvent),
-	}}
+	var subscriber2 = &plusSubscriber{
+		subscriber{
+			id:     guuid.New().String(),
+			stop:   make(chan struct{}),
+			events: make(chan ICalcEvent),
+		},
+	}
 
-	resolver.mySubcriber <- specialSubcriber
 	resolver.mySubcriber <- subscriber1
 
-	resolver.myEvent <- event
-	resolver.myEvent <- event2
+	resolver.mySubcriber <- subscriber2
 
-	specialSubcriber.HandleMessage()
+	resolver.myEvent <- event
+
+	resolver.myEvent <- eventPlus
+
 	subscriber1.HandleMessage()
+
+	subscriber2.HandleMessage()
 
 	time.Sleep(2000)
 }
@@ -83,7 +89,7 @@ func (r *resolver) broadcastEvent() {
 					case <-s.GetStop():
 						unsubscribe <- id
 					case s.GetEvents() <- e:
-						log.Println("Event pushed to", s)
+						log.Println("Event pushed to", s.GetId())
 					}
 				}(id, s)
 			}
