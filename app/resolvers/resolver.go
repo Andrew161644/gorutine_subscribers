@@ -5,18 +5,25 @@ import (
 	"proj/handlers"
 )
 
-type IResolver interface {
-	AddSubscriber(iSubscriber handlers.ISubscriber)
+type IHandlerContainer interface {
+	AddHandler(iSubscriber handlers.IHandler)
+}
+
+type IPublisher interface {
 	AddCommand(event commands.ICommand)
+}
+type IResolver interface {
+	IHandlerContainer
+	IPublisher
 	GoBroadCastEvent()
 }
 
 type AbstractResolver struct {
 	Commands    chan commands.ICommand
-	Subscribers chan handlers.ISubscriber
+	Subscribers chan handlers.IHandler
 }
 
-func (resolver *AbstractResolver) AddSubscriber(iSubscriber handlers.ISubscriber) {
+func (resolver *AbstractResolver) AddHandler(iSubscriber handlers.IHandler) {
 	resolver.Subscribers <- iSubscriber
 }
 
@@ -27,7 +34,7 @@ func (resolver *AbstractResolver) AddCommand(event commands.ICommand) {
 func NewResolver() *AbstractResolver {
 	r := &AbstractResolver{
 		Commands:    make(chan commands.ICommand),
-		Subscribers: make(chan handlers.ISubscriber),
+		Subscribers: make(chan handlers.IHandler),
 	}
 
 	return r

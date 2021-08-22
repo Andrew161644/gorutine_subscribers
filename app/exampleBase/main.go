@@ -27,19 +27,19 @@ func main() {
 		B:           20,
 	}
 
-	var subscriber1 = handlers.MakeHandler(
+	var handler = handlers.MakeHandler(
 		guuid.New().String(),
 		make(chan struct{}),
 		make(chan events.ICommand))
 
-	var subscriber2 = examplex.MakePlusSubscriber(
+	var handler2 = examplex.MakePlusHandler(
 		guuid.New().String(),
 		make(chan struct{}),
 		make(chan events.ICommand))
 
-	mResolver.AddSubscriber(subscriber1)
+	mResolver.AddHandler(handler)
 
-	mResolver.AddSubscriber(subscriber2)
+	mResolver.AddHandler(handler2)
 
 	mResolver.AddCommand(event)
 

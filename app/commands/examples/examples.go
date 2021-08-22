@@ -21,6 +21,7 @@ type CommandBase struct {
 	id  string
 	msg string
 }
+
 type CalcCommandPlus struct {
 	CommandBase
 	A int

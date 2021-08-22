@@ -42,7 +42,7 @@ func (s *plusHandler) Handle() {
 	}()
 }
 
-func MakePlusSubscriber(
+func MakePlusHandler(
 	id string,
 	stop <-chan struct{},
 	events chan commands.ICommand) *plusHandler {
