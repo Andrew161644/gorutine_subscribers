@@ -4,6 +4,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"log"
 	"proj/rabbitMq/commands"
+	"reflect"
 )
 
 type IRabbitHandler interface {
@@ -46,7 +47,7 @@ func (*RabbitHandlerPlus) Handle(commandMap map[string]interface{}) {
 	for key, value := range commandMap {
 		log.Println("Plus handler, trying execute: ", key)
 		switch key {
-		case "RabbitCommandPlus":
+		case reflect.TypeOf(commands.RabbitCommandPlus{}).Name():
 			err := mapstructure.Decode(value, &command)
 			if err != nil {
 				log.Fatal("Error")
@@ -67,7 +68,7 @@ func (*RabbitHandlerMinus) Handle(commandMap map[string]interface{}) {
 	for key, value := range commandMap {
 		log.Println("Minus handler, trying execute: ", key)
 		switch key {
-		case "RabbitCommandMinus":
+		case reflect.TypeOf(commands.RabbitCommandMinus{}).Name():
 			err := mapstructure.Decode(value, &command)
 			if err != nil {
 				log.Fatal("Error")

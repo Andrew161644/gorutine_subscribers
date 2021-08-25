@@ -100,7 +100,7 @@ func (r *RabbitMqResolver) GoBroadCastEvent() {
 						unsubscribe <- id
 						return
 					default:
-						s.Handle(commandMap)
+						go s.Handle(commandMap)
 					}
 				}(id, s)
 			}

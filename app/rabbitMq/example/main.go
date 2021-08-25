@@ -114,7 +114,7 @@ func Publish(rabbitMqConfig resolver.RabbitMqConfig) {
 		amqp.Publishing{
 			DeliveryMode: amqp.Persistent,
 			ContentType:  "text/plain",
-			Body:         []byte(body),
+			Body:         body,
 		})
 	failOnError(err, "Failed to publish a message")
 	log.Printf(" [x] Sent %s", body)
