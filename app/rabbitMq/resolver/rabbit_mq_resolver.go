@@ -16,7 +16,7 @@ type IRabbitMqResolver interface {
 }
 
 type RabbitMqResolver struct {
-	CommandsMapChan    chan map[string]interface{}
+	CommandsMapChan    chan handlers.Event
 	RabbitHandlersChan chan handlers.IRabbitHandler
 	Connection         *amqp.Connection
 	Delivery           *<-chan amqp.Delivery
@@ -79,12 +79,12 @@ func (r *RabbitMqResolver) Start(rabbitMqConfig RabbitMqConfig) {
 }
 
 func (r *RabbitMqResolver) AddHandler(iSubscriber handlers.IRabbitHandler) {
-	log.Println("Add handler: ", iSubscriber.GetId())
+	/*	log.Println("Add handler: ", iSubscriber.GetId())*/
 	r.RabbitHandlersChan <- iSubscriber
 }
 
 func (r *RabbitMqResolver) GoBroadCastEvent() {
-	log.Println("examples listening started")
+	/*	log.Println("examples listening started")*/
 	unsubscribe := make(chan string)
 	for {
 		select {
@@ -108,7 +108,7 @@ func (r *RabbitMqResolver) GoBroadCastEvent() {
 	}
 }
 
-func (r *RabbitMqResolver) AddCommand(event map[string]interface{}) {
+func (r *RabbitMqResolver) AddCommand(event handlers.Event) {
 	r.CommandsMapChan <- event
 }
 
@@ -116,13 +116,13 @@ func (r *RabbitMqResolver) manageCommands() {
 	for d := range *r.Delivery {
 
 		var commandsMap map[string]interface{}
-		err := json.Unmarshal(d.Body, &commandsMap)
+		json.Unmarshal(d.Body, &commandsMap)
 		log.Println("Rabbit got: ", commandsMap)
 
-		r.AddCommand(commandsMap)
-		err = d.Ack(true)
-		if err != nil {
-			log.Fatal("Can not Ack")
-		}
+		r.AddCommand(handlers.Event{
+			Command:  commandsMap,
+			Delivery: d,
+		})
+		/*		d.Ack(true)*/
 	}
 }

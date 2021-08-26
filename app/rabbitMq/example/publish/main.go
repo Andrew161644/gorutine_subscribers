@@ -6,10 +6,8 @@ import (
 	"github.com/streadway/amqp"
 	"log"
 	"proj/rabbitMq/commands"
-	"proj/rabbitMq/handlers"
 	"proj/rabbitMq/resolver"
 	"reflect"
-	"time"
 )
 
 func main() {
@@ -21,41 +19,32 @@ func main() {
 		QueueName: "commands",
 	}
 
-	var r = resolver.RabbitMqResolver{
-		CommandsMapChan:    make(chan map[string]interface{}),
-		RabbitHandlersChan: make(chan handlers.IRabbitHandler),
-		Subscribers:        map[string]handlers.IRabbitHandler{},
+	var commandPlus = commands.RabbitCommandPlus{
+		A: 50,
+		B: 40,
 	}
 
-	r.Start(rabbitMqConfig)
+	var commandMinus = commands.RabbitCommandMinus{
+		A: 90,
+		B: 80,
+	}
+	Publish(rabbitMqConfig, commandMinus)
+	Publish(rabbitMqConfig, commandPlus)
 
-	var handler = handlers.RabbitHandlerMinus{
-		RabbitHandler: handlers.RabbitHandler{
-			Id:   "93551f4d-cb6e-45a3-8fba-2459ce6a9b70",
-			Stop: make(chan struct{}),
-		},
+	/*time.Sleep(2000)
+
+	var commandPlus2 = commands.RabbitCommandPlus{
+		A: 60,
+		B: 120,
 	}
 
-	var handler2 = handlers.RabbitHandlerPlus{
-		RabbitHandler: handlers.RabbitHandler{
-			Id:   "5d173ed9-04c8-4833-a525-2888a7e362e7",
-			Stop: make(chan struct{}),
-		},
+	var commandMinus2 = commands.RabbitCommandMinus{
+		A: 150,
+		B: 20,
 	}
 
-	time.Sleep(2000)
-	r.AddHandler(&handler)
-	r.AddHandler(&handler2)
-
-	Publish(rabbitMqConfig)
-
-	log.Println("\n\n")
-	handler2.Unsubscribe()
-
-	Publish(rabbitMqConfig)
-
-	forever := make(chan bool)
-	<-forever
+	Publish(rabbitMqConfig, commandPlus2)
+	Publish(rabbitMqConfig, commandMinus2)*/
 }
 
 func failOnError(err error, msg string) {
@@ -63,8 +52,7 @@ func failOnError(err error, msg string) {
 		log.Fatalf("%s: %s", msg, err)
 	}
 }
-
-func Publish(rabbitMqConfig resolver.RabbitMqConfig) {
+func Publish(rabbitMqConfig resolver.RabbitMqConfig, command commands.IRabbitCommand) {
 	var connectionString = fmt.Sprintf("amqp://%s:%s@%s:%s/",
 		rabbitMqConfig.Username,
 		rabbitMqConfig.Password,
@@ -90,19 +78,8 @@ func Publish(rabbitMqConfig resolver.RabbitMqConfig) {
 
 	failOnError(err, "Failed to declare a queue")
 
-	var commandPlus = commands.RabbitCommandPlus{
-		A: 50,
-		B: 40,
-	}
-
-	var commandMinus = commands.RabbitCommandMinus{
-		A: 80,
-		B: 100,
-	}
-
 	var commandMap = make(map[string]commands.IRabbitCommand)
-	commandMap[reflect.TypeOf(commandPlus).Name()] = commands.RabbitCommandBase(commandPlus)
-	commandMap[reflect.TypeOf(commandMinus).Name()] = commands.RabbitCommandBase(commandMinus)
+	commandMap[reflect.TypeOf(command).Name()] = command
 
 	body, _ := json.Marshal(commandMap)
 
@@ -117,5 +94,5 @@ func Publish(rabbitMqConfig resolver.RabbitMqConfig) {
 			Body:         body,
 		})
 	failOnError(err, "Failed to publish a message")
-	log.Printf(" [x] Sent %s", body)
+	/*	log.Printf(" [x] Sent %s", body)*/
 }
