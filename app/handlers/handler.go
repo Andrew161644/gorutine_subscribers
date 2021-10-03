@@ -5,7 +5,7 @@ import (
 	"proj/commands"
 )
 
-type ISubscriber interface {
+type IHandler interface {
 	GetId() string
 	Handle()
 	GetStop() <-chan struct{}
@@ -35,7 +35,7 @@ func (s Handler) Handle() {
 		for {
 			select {
 			case ev := <-s.Events:
-				log.Println("Simple subscriber handle Commands: ", ev.Execute())
+				log.Println("Simple subscriber handle CommandsMapChan: ", ev.Execute())
 			}
 		}
 	}()

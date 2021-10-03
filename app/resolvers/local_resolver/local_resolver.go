@@ -12,7 +12,7 @@ type LocalResolver struct {
 
 func (resolver *LocalResolver) GoBroadCastEvent() {
 	log.Println("examples listening started")
-	subscribers := map[string]ss.ISubscriber{}
+	subscribers := map[string]ss.IHandler{}
 	unsubscribe := make(chan string)
 	for {
 		select {
@@ -23,16 +23,11 @@ func (resolver *LocalResolver) GoBroadCastEvent() {
 			s.Handle()
 		case e := <-resolver.Commands:
 			for id, s := range subscribers {
-				go func(id string, s ss.ISubscriber) {
+				go func(id string, s ss.IHandler) {
 					select {
 					case <-s.GetStop():
 						unsubscribe <- id
 						return
-					default:
-					}
-					select {
-					case <-s.GetStop():
-						unsubscribe <- id
 					case s.GetEvents() <- e:
 					}
 				}(id, s)
