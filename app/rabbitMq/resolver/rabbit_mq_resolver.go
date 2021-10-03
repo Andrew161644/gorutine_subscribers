@@ -6,17 +6,11 @@ import (
 	"github.com/streadway/amqp"
 	"log"
 	"proj/rabbitMq/handlers"
-	"proj/resolvers"
 )
-
-type IRabbitMqResolver interface {
-	resolvers.IHandlerContainer
-	Start(RabbitMqConfig)
-	Close()
-}
 
 type RabbitMqResolver struct {
 	CommandsMapChan    chan handlers.Event
+	Unsubscribe        chan string
 	RabbitHandlersChan chan handlers.IRabbitHandler
 	Connection         *amqp.Connection
 	Delivery           *<-chan amqp.Delivery
@@ -52,6 +46,17 @@ func (r *RabbitMqResolver) Start(rabbitMqConfig RabbitMqConfig) {
 
 	failOnError(err, "Failed to open a channel")
 
+	err = r.Channel.ExchangeDeclare(
+		"commands", // name
+		"fanout",   // type
+		true,       // durable
+		false,      // auto-deleted
+		false,      // internal
+		false,      // no-wait
+		nil,        // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
 	q, err := r.Channel.QueueDeclare(
 		rabbitMqConfig.QueueName, // name
 		true,                     // durable
@@ -61,6 +66,14 @@ func (r *RabbitMqResolver) Start(rabbitMqConfig RabbitMqConfig) {
 		nil,                      // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
+
+	err = r.Channel.QueueBind(
+		q.Name,     // queue name
+		"",         // routing key
+		"commands", // exchange
+		false,
+		nil,
+	)
 
 	var d <-chan amqp.Delivery
 	d, err = r.Channel.Consume(
@@ -79,16 +92,13 @@ func (r *RabbitMqResolver) Start(rabbitMqConfig RabbitMqConfig) {
 }
 
 func (r *RabbitMqResolver) AddHandler(iSubscriber handlers.IRabbitHandler) {
-	/*	log.Println("Add handler: ", iSubscriber.GetId())*/
 	r.RabbitHandlersChan <- iSubscriber
 }
 
 func (r *RabbitMqResolver) GoBroadCastEvent() {
-	/*	log.Println("examples listening started")*/
-	unsubscribe := make(chan string)
 	for {
 		select {
-		case id := <-unsubscribe:
+		case id := <-r.Unsubscribe:
 			delete(r.Subscribers, id)
 		case s := <-r.RabbitHandlersChan:
 			r.Subscribers[s.GetId()] = s
@@ -96,8 +106,8 @@ func (r *RabbitMqResolver) GoBroadCastEvent() {
 			for id, s := range r.Subscribers {
 				go func(id string, s handlers.IRabbitHandler) {
 					select {
-					case <-s.GetStop():
-						unsubscribe <- id
+					case <-*s.GetStop():
+						r.Unsubscribe <- id
 						return
 					default:
 						go s.Handle(commandMap)
@@ -123,6 +133,6 @@ func (r *RabbitMqResolver) manageCommands() {
 			Command:  commandsMap,
 			Delivery: d,
 		})
-		/*		d.Ack(true)*/
+		//d.Ack(true)
 	}
 }

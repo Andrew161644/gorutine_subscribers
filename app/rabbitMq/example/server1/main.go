@@ -1,8 +1,14 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"github.com/nu7hatch/gouuid"
+	"os"
 	"proj/rabbitMq/handlers"
 	"proj/rabbitMq/resolver"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -12,35 +18,55 @@ func main() {
 		Password:  "guest",
 		Host:      "localhost",
 		Port:      "5672",
-		QueueName: "commands",
+		QueueName: "commands1",
 	}
 
 	var r = resolver.RabbitMqResolver{
 		CommandsMapChan:    make(chan handlers.Event),
+		Unsubscribe:        make(chan string),
 		RabbitHandlersChan: make(chan handlers.IRabbitHandler),
 		Subscribers:        map[string]handlers.IRabbitHandler{},
 	}
 
 	r.Start(rabbitMqConfig)
-	/*var handler = handlers.RabbitHandlerMinus{
-		RabbitHandler: handlers.RabbitHandler{
-			Id:   "93551f4d-cb6e-45a3-8fba-2459ce6a9b70",
-			Stop: make(chan struct{}),
-		},
-	}*/
-
-	var handler2 = handlers.RabbitHandlerPlus{
-		RabbitHandler: handlers.RabbitHandler{
-			Id:   "5d173ed9-04c8-4833-a525-2888a7e362e7",
-			Stop: make(chan struct{}),
-		},
-	}
-
 	time.Sleep(2000)
-	/*r.AddHandler(&handler)*/
+	reader := bufio.NewReader(os.Stdin)
 
-	r.AddHandler(&handler2)
+	var command string
+	for {
+		command, _ = reader.ReadString('\n')
+		splitted := strings.Split(command, " ")
+		switch strings.TrimSpace(splitted[0]) {
+		case "add":
+			u, _ := uuid.NewV4()
+			var handler2 = handlers.RabbitHandlerPlus{
+				RabbitHandler: handlers.RabbitHandler{
+					Id:   u.String(),
+					Stop: make(chan struct{}),
+				},
+			}
+			r.AddHandler(&handler2)
+		case "minus":
+			u, _ := uuid.NewV4()
+			var handler2 = handlers.RabbitHandlerMinus{
+				RabbitHandler: handlers.RabbitHandler{
+					Id:   u.String(),
+					Stop: make(chan struct{}),
+				},
+			}
+			r.AddHandler(&handler2)
+		case "ls":
+			LogStatus(&r)
 
-	forever := make(chan bool)
-	<-forever
+		case "del":
+			var id = strings.TrimSpace(splitted[1])
+			r.Unsubscribe <- id
+		}
+	}
+}
+
+func LogStatus(r *resolver.RabbitMqResolver) {
+	for id, handler := range r.Subscribers {
+		fmt.Printf("%s %s \n", id, reflect.TypeOf(handler))
+	}
 }

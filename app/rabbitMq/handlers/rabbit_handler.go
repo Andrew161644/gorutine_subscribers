@@ -15,7 +15,7 @@ type Event struct {
 
 type IRabbitHandler interface {
 	GetId() string
-	GetStop() chan struct{}
+	GetStop() *chan struct{}
 	Unsubscribe()
 	Handle(event Event)
 }
@@ -26,18 +26,16 @@ type RabbitHandler struct {
 }
 
 func (r *RabbitHandler) Unsubscribe() {
-	go func() {
-		r.GetStop() <- struct{}{}
-		log.Println("Stop func")
-	}()
+	r.Stop <- struct{}{}
+	log.Println("Stop func")
 }
 
 func (r *RabbitHandler) GetId() string {
 	return r.Id
 }
 
-func (r *RabbitHandler) GetStop() chan struct{} {
-	return r.Stop
+func (r *RabbitHandler) GetStop() *chan struct{} {
+	return &r.Stop
 }
 
 func (*RabbitHandler) Handle(event Event) {

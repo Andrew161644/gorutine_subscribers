@@ -23,13 +23,13 @@ func main() {
 		A: 50,
 		B: 40,
 	}
+	Publish(rabbitMqConfig, commandPlus)
 
 	var commandMinus = commands.RabbitCommandMinus{
 		A: 90,
 		B: 80,
 	}
 	Publish(rabbitMqConfig, commandMinus)
-	Publish(rabbitMqConfig, commandPlus)
 
 	/*time.Sleep(2000)
 
@@ -67,16 +67,16 @@ func Publish(rabbitMqConfig resolver.RabbitMqConfig, command commands.IRabbitCom
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		rabbitMqConfig.QueueName,
-		true,
-		false,
-		false,
-		false,
-		nil,
+	err = ch.ExchangeDeclare(
+		"commands", // name
+		"fanout",   // type
+		true,       // durable
+		false,      // auto-deleted
+		false,      // internal
+		false,      // no-wait
+		nil,        // arguments
 	)
-
-	failOnError(err, "Failed to declare a queue")
+	failOnError(err, "Failed to declare an exchange")
 
 	var commandMap = make(map[string]commands.IRabbitCommand)
 	commandMap[reflect.TypeOf(command).Name()] = command
@@ -84,8 +84,8 @@ func Publish(rabbitMqConfig resolver.RabbitMqConfig, command commands.IRabbitCom
 	body, _ := json.Marshal(commandMap)
 
 	err = ch.Publish(
+		"commands",
 		"",
-		q.Name,
 		false,
 		false,
 		amqp.Publishing{
@@ -94,5 +94,4 @@ func Publish(rabbitMqConfig resolver.RabbitMqConfig, command commands.IRabbitCom
 			Body:         body,
 		})
 	failOnError(err, "Failed to publish a message")
-	/*	log.Printf(" [x] Sent %s", body)*/
 }
